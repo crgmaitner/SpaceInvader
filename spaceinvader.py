@@ -2,6 +2,7 @@ import sys
 import pygame
 from settings import Settings
 from ship import Ship
+from bullet import Bullet
 
 class SpaceInvaders:
     """Overall class to manage game assets and behaviors"""
@@ -15,6 +16,7 @@ class SpaceInvaders:
             (self.settings.screen_width, self.settings.screen_height))
         pygame.display.set_caption('Space Invaders')
         self.ship = Ship(self)
+        self.bullets = pygame.sprite.Group()
 
         # Optional fullscreen mode. Replace lines 14 and 15 with lines 21 - 23
         # self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
@@ -26,9 +28,10 @@ class SpaceInvaders:
         while True:
             self._check_events()
             self.ship.update()
+            self._update_bullets()
             self._update_screen()
 
-    # Watch for keyboard and mouse events.
+    # Look for keyboard and mouse events.
     def _check_events(self):
         """Respond to keypresses and mouse events."""
         for event in pygame.event.get():
@@ -39,6 +42,8 @@ class SpaceInvaders:
                 self._check_keydown_events(event)
             elif event.type == pygame.KEYUP:
                 self._check_keyup_events(event)
+
+    # Actions take when keys are pressed down.
     def _check_keydown_events(self, event):
         if event.key == pygame.K_RIGHT:
             self.ship.moving_right = True
@@ -47,17 +52,39 @@ class SpaceInvaders:
         # Press Q to quit. Required for Fullscreen mode.
         elif event.key == pygame.K_q:
             sys.exit()
+        elif event.key == pygame.K_SPACE:
+            self._fire_bullet()
+
+    # Actions taken when keys are released.
     def _check_keyup_events(self, event):
         if event.key == pygame.K_RIGHT:
             self.ship.moving_right = False
         elif event.key == pygame.K_LEFT:
             self.ship.moving_left = False
 
+    # Firing a bullet functionality.
+    def _fire_bullet(self):
+        """Create a new bullet and add it to the bullets group."""
+        if len(self.bullets) < self.settings.bullets_allowed:
+            new_bullet = Bullet(self)
+            self.bullets.add(new_bullet)
+
+    # Update bullets in-game.
+    def _update_bullets(self):
+        """Update the position of bullets and delete old bullets"""
+        self.bullets.update()
+        # Delete bullets which have disappeared.
+        for bullet in self.bullets.copy():
+            if bullet.rect.bottom <= 0:
+                self.bullets.remove(bullet)
+
     # Redraw screen during each loop pass.
     def _update_screen(self):
         """Update images on screen, and flip to a new screen."""
         self.screen.fill(self.settings.bg_color)
         self.ship.blitme()
+        for bullet in self.bullets.sprites():
+            bullet.draw_bullet()
 
         # Make the most recently drawn screen visible.
         pygame.display.flip()
