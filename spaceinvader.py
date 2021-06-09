@@ -4,6 +4,8 @@ from settings import Settings
 from ship import Ship
 from bullet import Bullet
 from invader import Alien
+from star import Star
+from random import randint
 
 class SpaceInvaders:
     """Overall class to manage game assets and behaviors"""
@@ -19,6 +21,7 @@ class SpaceInvaders:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.stars = pygame.sprite.Group()
 
         # Optional fullscreen mode. Replace lines 16 and 17 with lines 24 - 26
         # self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
@@ -26,6 +29,40 @@ class SpaceInvaders:
         # self.settings.screen_height = self.screen.get_rect().height
 
         self._create_fleet()
+        self._create_stars()
+
+    def _create_stars(self):
+        """Create a starmap"""
+        # Create a star and find the number of stars in a row.
+        # Spacing between each star is equal to two star width.
+        star = Star(self)
+        star_width, star_height = star.rect.size
+        # Calculate horizontal space between each star.
+        available_space_x = self.settings.screen_width - (star_width)
+        # Calculate number of stars per row across the screen.
+        star_amount_x = available_space_x // (2 * star_width)
+        # Determine the number of rows of stars that fit on the screen.
+        available_space_y = (self.settings.screen_height -
+                                (2 * star_height))
+        number_rows = available_space_y // (2 * star_height)
+
+        # Create the star map.
+        for star_row_num in range(number_rows):
+            for star_number in range(star_amount_x):
+                self._create_star(star_number, star_row_num)
+
+    def _create_star(self, star_number, star_row_number):
+        """Create stars and place them in the star map."""
+        star = Star(self)
+        star_width, star_height = star.rect.size
+        star.rect.x = 2.5 * star_width + 6 * star_width * star_number
+        star.rect.y = star.rect.height + 6 * star.rect.height * star_row_number
+
+        # Randomize star locations on screen.
+        star.rect.x += randint(-15, 15)
+        star.rect.y += randint(-15, 15)
+
+        self.stars.add(star)
 
     def _create_fleet(self):
         """Create the Invader Fleet"""
@@ -121,6 +158,7 @@ class SpaceInvaders:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        self.stars.draw(self.screen)
 
         # Make the most recently drawn screen visible.
         pygame.display.flip()
