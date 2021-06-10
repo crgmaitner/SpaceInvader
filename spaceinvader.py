@@ -101,6 +101,7 @@ class SpaceInvaders:
             self._check_events()
             self.ship.update()
             self._update_bullets()
+            self._update_aliens()
             self._update_screen()
 
     # Look for keyboard and mouse events.
@@ -134,6 +135,21 @@ class SpaceInvaders:
         elif event.key == pygame.K_LEFT:
             self.ship.moving_left = False
 
+    # Check if the fleet has reached an edge of the screen.
+    def _check_fleet_edges(self):
+        """Respond appropriately if an invader reaches an edge."""
+        for alien in self.aliens.sprites():
+            if alien.check_edge():
+                self._change_direction()
+                break
+
+    # Change the fleet direction on-screen.
+    def _change_direction(self):
+        """Drop entire fleet and change movement direction"""
+        for alien in self.aliens.sprites():
+            alien.rect.y += self.settings.fleet_drop_speed
+        self.settings.fleet_direction *= -1
+
     # Firing a bullet functionality.
     def _fire_bullet(self):
         """Create a new bullet and add it to the bullets group."""
@@ -149,6 +165,14 @@ class SpaceInvaders:
         for bullet in self.bullets.copy():
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
+    # Update invaders in-game.
+    def _update_aliens(self):
+        """
+        Check if the fleet has reached an edge, then update positions of all
+            invaders in the fleet.
+        """
+        self._check_fleet_edges()
+        self.aliens.update()
 
     # Redraw screen during each loop pass.
     def _update_screen(self):
