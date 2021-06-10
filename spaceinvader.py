@@ -165,6 +165,11 @@ class SpaceInvaders:
         for bullet in self.bullets.copy():
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
+        # Check for bullet collison with invaders and remove bullet and
+        # invader if collison is detected.
+        collision = pygame.sprite.groupcollide(
+                self.bullets, self.aliens, True, True)
+
     # Update invaders in-game.
     def _update_aliens(self):
         """
