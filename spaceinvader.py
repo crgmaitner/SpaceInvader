@@ -1,16 +1,20 @@
 import sys
+from time import sleep
+import math
 import pygame
 from settings import Settings
+from gamestats import GameStats
 from ship import Ship
 from bullet import Bullet
 from invader import Alien
+from boom import Explosion, AlienExplosion, ShipExplosion
 from star import Star
 from random import randint
 
 class SpaceInvaders:
     """Overall class to manage game assets and behaviors"""
 
-    def __init__(self):
+    def __init__(self, num_aliens = 36):
         """Initialize game, and create game resources"""
         pygame.init()
         self.settings = Settings()
@@ -18,10 +22,15 @@ class SpaceInvaders:
         self.screen = pygame.display.set_mode(
             (self.settings.screen_width, self.settings.screen_height))
         pygame.display.set_caption('Space Invaders')
+        # Create an instance to store game stats
+        self.stats = GameStats(self)
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
         self.stars = pygame.sprite.Group()
+        self.explosions = pygame.sprite.Group()
+
+        self.num_aliens = num_aliens
 
         # Optional fullscreen mode. Replace lines 16 and 17 with lines 24 - 26
         # self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
@@ -55,8 +64,8 @@ class SpaceInvaders:
         """Create stars and place them in the star map."""
         star = Star(self)
         star_width, star_height = star.rect.size
-        star.rect.x = 2.5 * star_width + 6 * star_width * star_number
-        star.rect.y = star.rect.height + 6 * star.rect.height * star_row_number
+        star.rect.x = 2.5 * star_width + 8 * star_width * star_number
+        star.rect.y = star.rect.height + 8 * star.rect.height * star_row_number
 
         # Randomize star locations on screen.
         star.rect.x += randint(-15, 15)
@@ -75,17 +84,23 @@ class SpaceInvaders:
         # Calculate number of Invaders per horizontal space.
         alien_amount_x = space_available_x // (2 * alien_width)
 
-        # Determine the number of rows of Invaders that fit on screen.
-        ship_height = self.ship.rect.height
-        space_available_y = (self.settings.screen_height -
-                                (3 * alien_height) - ship_height)
-        number_rows = space_available_y // (2 * alien_height)
+        # Calculate number of rows.
+        alien_amount_y = math.ceil(self.num_aliens / alien_amount_x)
+        # Keep count.
+        count = 0
+        for row_number in range(alien_amount_y):
+            for alien_number in range(alien_amount_x):
+                self._create_alien(alien_number, row_number)
+                count +=1
+                if count >= self.num_aliens:
+                    break
 
         # Create the fleet of Invaders.
-        for row_number in range(number_rows):
+        for row_number in range(alien_amount_y):
             for alien_number in range(alien_amount_x):
                 self._create_alien(alien_number, row_number)
 
+    # Create a single invader
     def _create_alien(self, alien_number, row_number):
         """Create Invader and place it in the row."""
         alien = Alien(self)
@@ -95,6 +110,33 @@ class SpaceInvaders:
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
 
+    # Create an explosion where an invader is destroyed
+    def _create_alien_explosion(self, x, y):
+        """Create an alien explosion and place it at x, y coordinates."""
+        explosion = AlienExplosion(self, x, y)
+        self.explosions.add(explosion)
+
+    # Create an explosion when the player ship is destroyed
+    def _create_ship_explosion(self, x, y):
+        """Create a player ship explosion and place it at x, y coordinates."""
+        explosion = ShipExplosion(self, x, y)
+        self.explosions.add(explosion)
+
+    # Create an instance of the player ship being hit by an invader
+    def _ship_hit(self):
+        """Respond to the ship being hit by an invader."""
+        # Decrement the amount of ships left
+        self._create_ship_explosion(self.ship.rect.x, self.ship.rect.y)
+        self.stats.ships_left -= 1
+        # Get rid of any remaining invaders and bullets
+        self.aliens.empty()
+        self.bullets.empty()
+        # Spawn a new fleet and center the player ship
+        self._create_fleet()
+        self.ship.center_ship()
+        # Pause and regroup
+        sleep(0.5)
+
     def run_game(self):
         """Start the main game loop"""
         while True:
@@ -102,6 +144,7 @@ class SpaceInvaders:
             self.ship.update()
             self._update_bullets()
             self._update_aliens()
+            self._update_explosions()
             self._update_screen()
 
     # Look for keyboard and mouse events.
@@ -165,10 +208,23 @@ class SpaceInvaders:
         for bullet in self.bullets.copy():
             if bullet.rect.bottom <= 0:
                 self.bullets.remove(bullet)
+        self._check_bullet_alien_collisions()
+
+    def _check_bullet_alien_collisions(self):
+        """Respond to bullet-alien collision events."""
         # Check for bullet collison with invaders and remove bullet and
         # invader if collison is detected.
-        collision = pygame.sprite.groupcollide(
+        collisions = pygame.sprite.groupcollide(
                 self.bullets, self.aliens, True, True)
+        for bullet in collisions:
+            aliens = collisions[bullet]
+            for alien in aliens:
+                # Create alien explosion
+                self._create_alien_explosion(alien.rect.x, alien.rect.y)
+        if not self.aliens:
+            # Destory existing bullets and create a new fleet.
+            self.bullets.empty()
+            self._create_fleet()
 
     # Update invaders in-game.
     def _update_aliens(self):
@@ -178,16 +234,35 @@ class SpaceInvaders:
         """
         self._check_fleet_edges()
         self.aliens.update()
+        # Check if an alien reaches the bottom.
+        for alien in self.aliens.copy():
+            if alien.rect.bottom >= self.settings.screen_height:
+                return
+        # Check for alien collision with ship.
+        for alien in self.aliens:
+            #if pygame.sprite.collide_rect(self.ship, alien):
+            if pygame.sprite.spritecollideany(self.ship, self.aliens):
+                # Create ship explosion
+                self._create_ship_explosion(self.ship.rect.x, self.ship.rect.y)
+                sleep(1)
+                self._ship_hit()
+                return
+
+    # Update explosions.
+    def _update_explosions(self):
+        """Update all explosions in-game."""
+        self.explosions.update()
 
     # Redraw screen during each loop pass.
     def _update_screen(self):
         """Update images on screen, and flip to a new screen."""
         self.screen.fill(self.settings.bg_color)
+        self.stars.draw(self.screen)
         self.ship.blitme()
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
-        self.stars.draw(self.screen)
+        self.explosions.draw(self.screen)
 
         # Make the most recently drawn screen visible.
         pygame.display.flip()
