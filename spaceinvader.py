@@ -83,7 +83,6 @@ class SpaceInvaders:
         space_available_x = self.settings.screen_width - (2 * alien_width)
         # Calculate number of Invaders per horizontal space.
         alien_amount_x = space_available_x // (2 * alien_width)
-
         # Calculate number of rows.
         alien_amount_y = math.ceil(self.num_aliens / alien_amount_x)
         # Keep count.
@@ -125,26 +124,32 @@ class SpaceInvaders:
     # Create an instance of the player ship being hit by an invader
     def _ship_hit(self):
         """Respond to the ship being hit by an invader."""
-        # Decrement the amount of ships left
-        self._create_ship_explosion(self.ship.rect.x, self.ship.rect.y)
-        self.stats.ships_left -= 1
-        # Get rid of any remaining invaders and bullets
-        self.aliens.empty()
-        self.bullets.empty()
-        # Spawn a new fleet and center the player ship
-        self._create_fleet()
-        self.ship.center_ship()
-        # Pause and regroup
-        sleep(0.5)
+        # Check the game state and adjust if conditions are met.
+        if self.stats.ships_left > 0:
+            # Decrement the amount of ships left
+            self._create_ship_explosion(self.ship.rect.x, self.ship.rect.y)
+            self.stats.ships_left -= 1
+            # Get rid of any remaining invaders and bullets
+            self.aliens.empty()
+            self.bullets.empty()
+            # Spawn a new fleet and center the player ship
+            self._create_fleet()
+            self.ship.center_ship()
+            # Pause and regroup
+            sleep(0.5)
+        else:
+            self.stats.game_active = False
 
     def run_game(self):
         """Start the main game loop"""
         while True:
             self._check_events()
-            self.ship.update()
-            self._update_bullets()
-            self._update_aliens()
-            self._update_explosions()
+            if self.stats.game_active:
+                self.ship.update()
+                self._update_bullets()
+                self._update_aliens()
+                self._update_explosions()
+
             self._update_screen()
 
     # Look for keyboard and mouse events.
@@ -235,18 +240,26 @@ class SpaceInvaders:
         self._check_fleet_edges()
         self.aliens.update()
         # Check if an alien reaches the bottom.
-        for alien in self.aliens.copy():
-            if alien.rect.bottom >= self.settings.screen_height:
-                return
+        self._check_alien_bottom()
         # Check for alien collision with ship.
         for alien in self.aliens:
             #if pygame.sprite.collide_rect(self.ship, alien):
             if pygame.sprite.spritecollideany(self.ship, self.aliens):
                 # Create ship explosion
                 self._create_ship_explosion(self.ship.rect.x, self.ship.rect.y)
-                sleep(1)
                 self._ship_hit()
                 return
+
+    # Check for invaders reaching the bottom of the screen.
+    def _check_alien_bottom(self):
+        """Check if any aliens have reached the bottom of the screen."""
+        screen_rect = self.screen.get_rect()
+        for alien in self.aliens.sprites():
+            if alien.rect.bottom >= screen_rect.bottom:
+                # React in the same way as if the player ship has been hit.
+                self._create_ship_explosion(self.ship.rect.x, self.ship.rect.y)
+                self._ship_hit()
+                break
 
     # Update explosions.
     def _update_explosions(self):
