@@ -140,6 +140,19 @@ class SpaceInvaders:
         else:
             self.stats.game_active = False
 
+    #def _pause_game(self):
+    #    pause = True
+    #    while pause:
+    #            if event.type == pygame.QUIT:
+    #                pygame.quit()
+    #                _check_keydown_events()
+    #            if event.type == pygame.KEYDOWN:
+    #                if event.key == pygame.K_c:
+    #                    pause = False
+    #                elif event.key == pygame.K_q:
+    #                    pygame.quit()
+    #                    _check_keydown_events()
+
     def run_game(self):
         """Start the main game loop"""
         while True:
