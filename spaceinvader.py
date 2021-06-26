@@ -4,6 +4,7 @@ import math
 import pygame
 from settings import Settings
 from gamestats import GameStats
+from button import Button
 from ship import Ship
 from bullet import Bullet
 from invader import Alien
@@ -24,6 +25,8 @@ class SpaceInvaders:
         pygame.display.set_caption('Space Invaders')
         # Create an instance to store game stats
         self.stats = GameStats(self)
+        # Make the Play button
+        self.play_button = Button(self, "Play")
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
@@ -32,7 +35,7 @@ class SpaceInvaders:
 
         self.num_aliens = num_aliens
 
-        # Optional fullscreen mode. Replace lines 16 and 17 with lines 24 - 26
+        # Optional fullscreen mode. Replace lines 23 and 24 with lines 39 - 41
         # self.screen = pygame.display.set_mode((0,0), pygame.FULLSCREEN)
         # self.settings.screen_width = self.screen.get_rect().width
         # self.settings.screen_height = self.screen.get_rect().height
@@ -140,19 +143,6 @@ class SpaceInvaders:
         else:
             self.stats.game_active = False
 
-    #def _pause_game(self):
-    #    pause = True
-    #    while pause:
-    #            if event.type == pygame.QUIT:
-    #                pygame.quit()
-    #                _check_keydown_events()
-    #            if event.type == pygame.KEYDOWN:
-    #                if event.key == pygame.K_c:
-    #                    pause = False
-    #                elif event.key == pygame.K_q:
-    #                    pygame.quit()
-    #                    _check_keydown_events()
-
     def run_game(self):
         """Start the main game loop"""
         while True:
@@ -176,6 +166,25 @@ class SpaceInvaders:
                 self._check_keydown_events(event)
             elif event.type == pygame.KEYUP:
                 self._check_keyup_events(event)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_pos = pygame.mouse.get_pos()
+                self._check_play_button(mouse_pos)
+
+    # Look for play button events.
+    def _check_play_button(self, mouse_pos):
+        """Start a new game when the player clicks Play."""
+        if self.play_button.rect.collidepoint(mouse_pos):
+            # Reset game statistics.
+            self.stats.reset_stats()
+            self.stats.game_active = True
+
+            # Eliminate any remaining invaders and bullets
+            self.aliens.empty()
+            self.bullets.empty()
+
+            # Create a new fleet and recenter the player ship
+            self._create_fleet()
+            self.ship.center_ship()
 
     # Actions take when keys are pressed down.
     def _check_keydown_events(self, event):
@@ -204,7 +213,7 @@ class SpaceInvaders:
                 self._change_direction()
                 break
 
-    # Change the fleet direction on-screen.
+    # Change the fleet direction on-screen when reaching the edge.
     def _change_direction(self):
         """Drop entire fleet and change movement direction"""
         for alien in self.aliens.sprites():
@@ -279,7 +288,7 @@ class SpaceInvaders:
         """Update all explosions in-game."""
         self.explosions.update()
 
-    # Redraw screen during each loop pass.
+    # Redraw the screen during each loop pass.
     def _update_screen(self):
         """Update images on screen, and flip to a new screen."""
         self.screen.fill(self.settings.bg_color)
@@ -289,6 +298,9 @@ class SpaceInvaders:
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
         self.explosions.draw(self.screen)
+        # Draw the play button to the screen if the game is inactive
+        if not self.stats.game_active:
+            self.play_button.draw_button()
 
         # Make the most recently drawn screen visible.
         pygame.display.flip()
