@@ -1,7 +1,7 @@
 import sys
+import pygame
 from time import sleep
 import math
-import pygame
 from settings import Settings
 from gamestats import GameStats
 from button import Button
